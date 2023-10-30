@@ -1,6 +1,6 @@
 - 👋 Hi, I’m @Meulilox
 - 👀 I’m interested in mathematical engineering, video-games and music
-- 🌱 I’m currently learning programmation and data analysis
+- 🌱 I’m currently learning python, C++ and R, data analysis and simulation of physical system.
 - 📫 How to reach me : e-mail : melissa.jeanw@yahoo.com
 
 <!---
