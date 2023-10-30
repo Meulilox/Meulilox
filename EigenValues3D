@@ -14,7 +14,7 @@ A = np.linspace(0,10,nA)
 B = np.linspace(0,10,nB)
 
 
-#defini la scène 3D
+#defining the 3D scene
 fig = plt.figure()
 
 cnorm = colors.TwoSlopeNorm(vmin=-4, vcenter=0., vmax=10) #so the white part is in 0
