@@ -1,0 +1,48 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+Table ETUDIANT {
+  numero integer
+  nom varchar
+  prenom varchar 
+  adresse varchar
+}
+
+Table UE {
+  libelle varchar
+  code integer [primary key]
+    nbheure smallint [note: 'Cours TD,TP confondus']
+}
+
+Table ETUDIANT_UE {
+  numero_etudiant integer [primary key]
+  code_UE integer [primary key]
+  noteCC integer
+  noteExam integer
+
+}
+
+Table ADRESSE {
+  id integer [primary key]
+  num_rue integer
+  nom_rue varchar
+  complement char
+  code_postal integer
+  ville varchar
+}
+
+Table ENSEIGNANT {
+  numero integer [primary key]
+  nom varchar
+  prenom varchar
+  age smallint
+  adresse integer
+}
+
+Ref: ETUDIANT.adresse > ADRESSE.id // many-to-one
+
+Ref: ETUDIANT_UE.code_UE < UE.code
+
+Ref: ETUDIANT_UE.numero_etudiant < ETUDIANT.numero
+
+Ref: ENSEIGNANT.adresse < ADRESSE.id
