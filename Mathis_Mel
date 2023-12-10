@@ -2,24 +2,130 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
 
-#%% PARAMETERS
-N = 10
+# CONDITIONS INITIALES
+def u_init(x, y):
+    return np.sin(x + y)
+
+def v_init(x, y):
+    return np.arctan(x - y) / 40
+
+def p_init(x, y):
+    return x + y
+
+Re = 1 # NOMBRE DE REYNOLDS DU PROBLEME
+
+# DONNEES PROBLEME
+xmin = 0; xmax = 20
+ymin = 0; ymax = 20
 T = 10
-t = np.linspace(0,T,N)
-x = np.linspace(0,T,N)
-y = np.linspace(0,T,N)
 
-# 1ERE ETAPE : CALCUL DE U* ET V*
+# MAILLAGES
+N = 15; M = N # N+1 PTS EN X / M+1 PTS EN Y (ON PREND N = M DANS TOUS LES TESTS)
+NT = 200 # NT + 1 PTS EN TEMPS
+
+dx = (xmax - xmin) / N
+dy = (ymax - ymin) / M
+dt = T / NT
+
+X = np.linspace(xmin, xmax, N + 1)
+Y = np.linspace(ymin, ymax, M + 1)
+gX, gY = np.meshgrid(Y, X)
+
+T = np.linspace(0, T, NT + 1)
+
+# INITIALISATION DE L'APPROXIMATION DES
+U = np.zeros((NT + 1, N + 1, M + 1)) # u(t, x, y)
+V = np.zeros((NT + 1, N + 1, M + 1))
+P = np.zeros((NT + 1, N + 1, M + 1))
+
+# CONDITION INITIALES A T = 0 POUR TOUT X ET TOUT Y
+U[0, :, :] = u_init(gX, gY)
+V[0, :, :] = v_init(gX, gY)
+P[0, :, :] = p_init(gX, gY)
+
+# TABLEAUX D'INDICES (POUR PRENDRE EN COMPTE LES CONDITIONS PERIODIQUES
+ip = np.zeros(N + 1); ip[0:-1] = range(1, N + 1); ip[-1] = 0; ip = [int(i) for i in ip] # INDICES i + 1 (POUR PRENDRE EN COMPTE CONDITIONS PERIODIQUES)
+im = np.zeros(N + 1); im[1:] =   range(0, N); im[0] = N; im = [int(i) for i in im] # INDICES i - 1
+jp = np.zeros(M + 1); jp[0:-1] = range(1, M + 1); jp[-1] = 0; jp = [int(j) for j in jp] # INDICES j + 1
+jm = np.zeros(M + 1); jm[1:] =   range(0, M); jm[-1] = M; jm = [int(j) for j in jm] # INDICES j - 1
+
+# A CHAQUE PAS DE TEMPS ON REMPLIT LA CREPE
+for n in range(0, NT):
+    # 1ERE ETAPE : CALCUL DE u* ET v*
+
+    # INITALISATION u* ET v*
+    US = np.zeros((N + 1, M + 1))
+    VS = np.zeros((N + 1, M + 1))
+
+    # BOUCLE SUR TOUS LES ELEMENTS DE LA CREPE
+    for i in range(0, N + 1):
+        for j in range(0, M + 1):
+
+            # 1ERE ETAPE : CALCULS DE U* ET V*
+
+            # CALCUL DE U*
+            # TERMES NON LINEAIRES (CONVECTION)
+            NL = -U[n, i, j] * (U[n, ip[i], j] - U[n, i, j]) / dx\
+                 -V[n, i, j] * (U[n, i, jp[i]] - U[n, i, j]) / dy
+
+            # TERMES LINEAIRES (LAPLACIEN)
+            L = (U[n, ip[i], j] - 2*U[n, i, j] + U[n, im[i], j]) / dx**2 +\
+                (U[n, i, ip[j]] - 2*U[n, i, j] + U[n, i, im[j]]) / dy**2
+            L = (1/Re) * L
+
+            # GRADIENT DE PRESSION
+            GP = - (P[n, ip[i], j] - P[n, i, j]) / dx
+
+            US[i, j] = U[n, i, j] + dt * (NL + L + GP)
+            U[n + 1, :, :] = US
+
+            # CALCUL DE V*
+            # TERMES NON LINEAIRES (CONVECTION)
+            NL = -U[n, i, j] * (V[n, ip[i], j] - V[n, i, j]) / dx\
+                 -V[n, i, j] * (V[n, i, jp[i]] - V[n, i, j]) / dy
+
+            # TERMES LINEAIRES (LAPLACIEN)
+            L = (V[n, ip[i], j] - 2*V[n, i, j] + V[n, im[i], j]) / dx**2 +\
+                (V[n, i, jp[i]] - 2*V[n, i, j] + V[n, i, jm[i]]) / dy**2
+            L = (1/Re) * L
+
+            VS[i, j] = V[n, i, j] + dt * (NL + L + GP)
+            V[n + 1, :, :] = VS
+
+    # 2EME ETAPE : CALCUL DE PHI
+    # INITIALISATION div(u*) ET div(v*) (POUR 2 EME ETAPE)
+    DUS = np.zeros((N + 1, M + 1))
+    DVS = np.zeros((N + 1, M + 1))
+
+    # CALCUL DE div(u*) ET div(v*)
+    for i in range(0, N + 1):
+        for j in range(0, M + 1):
+            DUS[i, j] = (US[ip[i], j] - US[i, j]) / dx + (US[i, jp[i]] - US[i, j]) / dy
+            DVS[i, j] = (VS[ip[i], j] - VS[i, j]) / dx + (VS[i, jp[i]] - VS[i, j]) / dy
 
 
-
-non boloss
-
+    # 3EME ETAPE : CALCUL DE U CORRIGE AU TEMPS D'APRES
 
 
+ind = 150
+# ON RECUPERE LES RESULTATS DANS UN FICHIER
+np.savetxt("Data/Ufield.txt", U[ind, :, :])
+np.savetxt("Data/Vfield.txt", V[ind, :, :])
 
+# TESTS
+plt.figure(1)
+ax = plt.axes(projection='3d')
+ax.plot_surface(gX, gY, U[ind, :, :], cmap = cm.coolwarm, linewidth=0, antialiased=True)
+ax.set_title("U")
 
-#%% PLOT
+plt.figure(2)
+ax = plt.axes(projection='3d')
+ax.plot_surface(gX, gY, V[ind, :, :], cmap = cm.coolwarm, linewidth=0, antialiased=True)
+ax.set_title("V")
+
+########################################################################
+
+#%% PLOT AVEC SLIDERS
 # create the figure and the axis
 fig, ax = plt.subplots()
 line1, = ax.plot(x,y, lw=2)
