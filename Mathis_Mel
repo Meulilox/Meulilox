@@ -7,10 +7,10 @@ def u_init(x, y):
     return np.sin(x + y)
 
 def v_init(x, y):
-    return np.arctan(x - y) / 40
+    return 0#np.arctan(x - y) / 40
 
 def p_init(x, y):
-    return x + y
+    return x
 
 Re = 1 # NOMBRE DE REYNOLDS DU PROBLEME
 
@@ -20,7 +20,7 @@ ymin = 0; ymax = 20
 T = 10
 
 # MAILLAGES
-N = 15; M = N # N+1 PTS EN X / M+1 PTS EN Y (ON PREND N = M DANS TOUS LES TESTS)
+N = 30; M = N # N+1 PTS EN X / M+1 PTS EN Y (ON PREND N = M DANS TOUS LES TESTS)
 NT = 200 # NT + 1 PTS EN TEMPS
 
 dx = (xmax - xmin) / N
@@ -47,7 +47,7 @@ P[0, :, :] = p_init(gX, gY)
 ip = np.zeros(N + 1); ip[0:-1] = range(1, N + 1); ip[-1] = 0; ip = [int(i) for i in ip] # INDICES i + 1 (POUR PRENDRE EN COMPTE CONDITIONS PERIODIQUES)
 im = np.zeros(N + 1); im[1:] =   range(0, N); im[0] = N; im = [int(i) for i in im] # INDICES i - 1
 jp = np.zeros(M + 1); jp[0:-1] = range(1, M + 1); jp[-1] = 0; jp = [int(j) for j in jp] # INDICES j + 1
-jm = np.zeros(M + 1); jm[1:] =   range(0, M); jm[-1] = M; jm = [int(j) for j in jm] # INDICES j - 1
+jm = np.zeros(M + 1); jm[1:] =   range(0, M); jm[0] = M; jm = [int(j) for j in jm] # INDICES j - 1
 
 # A CHAQUE PAS DE TEMPS ON REMPLIT LA CREPE
 for n in range(0, NT):
@@ -66,12 +66,12 @@ for n in range(0, NT):
             # CALCUL DE U*
             # TERMES NON LINEAIRES (CONVECTION)
             NL = -U[n, i, j] * (U[n, ip[i], j] - U[n, i, j]) / dx\
-                 -V[n, i, j] * (U[n, i, jp[i]] - U[n, i, j]) / dy
+                 -V[n, i, j] * (U[n, i, jp[j]] - U[n, i, j]) / dy
 
             # TERMES LINEAIRES (LAPLACIEN)
             L = (U[n, ip[i], j] - 2*U[n, i, j] + U[n, im[i], j]) / dx**2 +\
-                (U[n, i, ip[j]] - 2*U[n, i, j] + U[n, i, im[j]]) / dy**2
-            L = (1/Re) * L
+                (U[n, i, jp[j]] - 2*U[n, i, j] + U[n, i, jm[j]]) / dy**2
+            L = L / Re
 
             # GRADIENT DE PRESSION
             GP = - (P[n, ip[i], j] - P[n, i, j]) / dx
@@ -82,12 +82,15 @@ for n in range(0, NT):
             # CALCUL DE V*
             # TERMES NON LINEAIRES (CONVECTION)
             NL = -U[n, i, j] * (V[n, ip[i], j] - V[n, i, j]) / dx\
-                 -V[n, i, j] * (V[n, i, jp[i]] - V[n, i, j]) / dy
+                 -V[n, i, j] * (V[n, i, jp[j]] - V[n, i, j]) / dy
 
             # TERMES LINEAIRES (LAPLACIEN)
             L = (V[n, ip[i], j] - 2*V[n, i, j] + V[n, im[i], j]) / dx**2 +\
-                (V[n, i, jp[i]] - 2*V[n, i, j] + V[n, i, jm[i]]) / dy**2
-            L = (1/Re) * L
+                (V[n, i, jp[j]] - 2*V[n, i, j] + V[n, i, jm[j]]) / dy**2
+            L = L / Re
+
+            # GRADIENT DE PRESSION
+            GP = - (P[n, i, jp[j]] - P[n, i, j]) / dy
 
             VS[i, j] = V[n, i, j] + dt * (NL + L + GP)
             V[n + 1, :, :] = VS
@@ -100,8 +103,8 @@ for n in range(0, NT):
     # CALCUL DE div(u*) ET div(v*)
     for i in range(0, N + 1):
         for j in range(0, M + 1):
-            DUS[i, j] = (US[ip[i], j] - US[i, j]) / dx + (US[i, jp[i]] - US[i, j]) / dy
-            DVS[i, j] = (VS[ip[i], j] - VS[i, j]) / dx + (VS[i, jp[i]] - VS[i, j]) / dy
+            DUS[i, j] = (US[ip[i], j] - US[i, j]) / dx + (US[i, jp[j]] - US[i, j]) / dy
+            DVS[i, j] = (VS[ip[i], j] - VS[i, j]) / dx + (VS[i, jp[j]] - VS[i, j]) / dy
 
 
     # 3EME ETAPE : CALCUL DE U CORRIGE AU TEMPS D'APRES
@@ -117,11 +120,13 @@ plt.figure(1)
 ax = plt.axes(projection='3d')
 ax.plot_surface(gX, gY, U[ind, :, :], cmap = cm.coolwarm, linewidth=0, antialiased=True)
 ax.set_title("U")
+ax.set_xlabel("Y"); ax.set_ylabel("X") # INVERSES A CAUSE DU MESHGRID
 
 plt.figure(2)
 ax = plt.axes(projection='3d')
 ax.plot_surface(gX, gY, V[ind, :, :], cmap = cm.coolwarm, linewidth=0, antialiased=True)
 ax.set_title("V")
+ax.set_xlabel("Y"); ax.set_ylabel("X")
 
 ########################################################################
 
