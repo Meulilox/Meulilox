@@ -111,10 +111,10 @@ for n in range(0, NT):
     #print(np.max(DIV_US))
 
     # 3EME ETAPE : CALCUL DE U CORRIGE AU TEMPS D'APRES (/!\ BUG A CETTE ETAPE /!\)
-    """for i in range(0, N + 1):
-        for j in range(0, M + 1):
-            U[n + 1, i, j] = US[i, j] - (phi[ip[i], j] - phi[i, j]) / dx
-            V[n + 1, i, j] = VS[i, j] - (phi[i, jp[j]] - phi[i, j]) / dy"""
+    # for i in range(0, N + 1):
+    #     for j in range(0, M + 1):
+    #         U[n + 1, i, j] = US[i, j] - (phi[ip[i], j] - phi[i, j]) / dx
+    #         V[n + 1, i, j] = VS[i, j] - (phi[i, jp[j]] - phi[i, j]) / dy
 
     U[n + 1, :, :] = US
     V[n + 1, :, :] = VS
@@ -126,59 +126,77 @@ for n in range(0, NT):
 print(np.max(U))
 ind = 100
 # ON RECUPERE LES RESULTATS DANS UN FICHIER
-np.savetxt("Data/Ufield.txt", U[ind, :, :])
-np.savetxt("Data/Vfield.txt", V[ind, :, :])
+# np.savetxt("Data/Ufield.txt", U[ind, :, :])
+# np.savetxt("Data/Vfield.txt", V[ind, :, :])
 
 # TESTS
 plt.figure(1)
+figU = plt.figure(1)
 ax = plt.axes(projection='3d')
-ax.plot_surface(gX, gY, U[ind, :, :], cmap = cm.coolwarm, linewidth=0, antialiased=True)
+lineU = ax.plot_surface(gX, gY, U[ind, :, :], cmap = "viridis", linewidth=0, antialiased=True)
 ax.set_title("U")
 ax.set_xlabel("Y"); ax.set_ylabel("X") # INVERSES A CAUSE DU MESHGRID
 
-plt.figure(2)
+figV = plt.figure(2)
 ax = plt.axes(projection='3d')
-ax.plot_surface(gX, gY, V[ind, :, :], cmap = cm.coolwarm, linewidth=0, antialiased=True)
+lineV = ax.plot_surface(gX, gY, V[ind, :, :], cmap = "viridis", linewidth=0, antialiased=True)
 ax.set_title("V")
 ax.set_xlabel("Y"); ax.set_ylabel("X")
 
 ########################################################################
 
-#%% PLOT AVEC SLIDERS
-# create the figure and the axis
-fig, ax = plt.subplots()
-line1, = ax.plot(x,y, lw=2)
-ax.set_xlabel('t')
-ax.set_ylabel('y(t)')
-plt.axis([0,10,0,10])
-plt.title("Test")
 
-# adjust the main plot to make room for the sliders
-fig.subplots_adjust(bottom=0.25)
+# # #%% PLOT AVEC SLIDERS
 
-# Make a horizontal slider to control Re(A)
-axA = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-A_slider = Slider(
-    ax=axA,
-    label='t',
-    valmin=0,
-    valmax=10,
-    valinit=0,
-)
+# # adjust the main plot to make room for the sliders
+# figU.subplots_adjust(bottom=0.25)
+# figV.subplots_adjust(bottom=0.25)
 
-# Create a `matplotlib.widgets.Button` to reset the sliders to initial values
-resetax = fig.add_axes([0.8, 0.025, 0.1, 0.04])
-button = Button(resetax, 'Reset', hovercolor='0.975')
+# # Make a horizontal slider to control t
+# axU = figU.add_axes([0.25, 0.1, 0.65, 0.03])
+# U_slider = Slider(
+#     ax=axU,
+#     label='t',
+#     valmin=0,
+#     valmax=NT,
+#     valinit=0,
+#     valstep= 1,
+# )
 
-def reset(event):
-    A_slider.reset()
-button.on_clicked(reset)
+# # Make a horizontal slider to control t
+# axV= figV.add_axes([0.25, 0.1, 0.65, 0.03])
+# V_slider = Slider(
+#     ax=axV,
+#     label='t',
+#     valmin=0,
+#     valmax=NT,
+#     valinit=0,
+#     valstep= 1,
+# )
 
-def update(val):
-    line1.set_ydata(??????)   
-    fig.canvas.draw_idle()
+# # Create a `matplotlib.widgets.Button` to reset the sliders to initial values
+# resetaxU = figU.add_axes([0.8, 0.025, 0.1, 0.04])
+# buttonU = Button(resetaxU, 'Reset', hovercolor='0.975')
+# resetaxV = figV.add_axes([0.8, 0.025, 0.1, 0.04])
+# buttonV = Button(resetaxV, 'Reset', hovercolor='0.975')
 
-# register the update function with each slider
-A_slider.on_changed(update)
+
+# def reset(event):
+#     U_slider.reset()
+#     V_slider.reset()
+# buttonU.on_clicked(reset)
+# # buttonV.on_clicked(reset)
+
+# def update(val):
+#     ax.collections.clear()
+#     lineU = ax.plot_surface(gX,gY,U[int(U_slider.val), :, :])   
+#     figU.canvas.draw_idle()
+#     lineV = ax.plot_surface(gX,gY,V[int(V_slider.val), :, :]) 
+#     figV.canvas.draw_idle()
+
+    
+# # register the update function with each slider
+# U_slider.on_changed(update)
+# V_slider.on_changed(update)
 
 plt.show()
