@@ -146,57 +146,60 @@ ax.set_xlabel("Y"); ax.set_ylabel("X")
 ########################################################################
 
 
-# # #%% PLOT AVEC SLIDERS
+# adjust the main plot to make room for the sliders
+figU.subplots_adjust(bottom=0.25)
+figV.subplots_adjust(bottom=0.25)
 
-# # adjust the main plot to make room for the sliders
-# figU.subplots_adjust(bottom=0.25)
-# figV.subplots_adjust(bottom=0.25)
+# Make a horizontal slider to control t
+axU = figU.add_axes([0.25, 0.1, 0.65, 0.03])
+U_slider = Slider(
+    ax=axU,
+    label='t',
+    valmin=0,
+    valmax=NT,
+    valinit=0,
+    valstep= 1,
+)
 
-# # Make a horizontal slider to control t
-# axU = figU.add_axes([0.25, 0.1, 0.65, 0.03])
-# U_slider = Slider(
-#     ax=axU,
-#     label='t',
-#     valmin=0,
-#     valmax=NT,
-#     valinit=0,
-#     valstep= 1,
-# )
+# Make a horizontal slider to control t
+axV= figV.add_axes([0.25, 0.1, 0.65, 0.03])
+V_slider = Slider(
+    ax=axV,
+    label='t',
+    valmin=0,
+    valmax=NT,
+    valinit=0,
+    valstep= 1,
+)
 
-# # Make a horizontal slider to control t
-# axV= figV.add_axes([0.25, 0.1, 0.65, 0.03])
-# V_slider = Slider(
-#     ax=axV,
-#     label='t',
-#     valmin=0,
-#     valmax=NT,
-#     valinit=0,
-#     valstep= 1,
-# )
-
-# # Create a `matplotlib.widgets.Button` to reset the sliders to initial values
-# resetaxU = figU.add_axes([0.8, 0.025, 0.1, 0.04])
-# buttonU = Button(resetaxU, 'Reset', hovercolor='0.975')
-# resetaxV = figV.add_axes([0.8, 0.025, 0.1, 0.04])
-# buttonV = Button(resetaxV, 'Reset', hovercolor='0.975')
+# Create a `matplotlib.widgets.Button` to reset the sliders to initial values
+resetaxU = figU.add_axes([0.8, 0.025, 0.1, 0.04])
+buttonU = Button(resetaxU, 'Reset', hovercolor='0.975')
+resetaxV = figV.add_axes([0.8, 0.025, 0.1, 0.04])
+buttonV = Button(resetaxV, 'Reset', hovercolor='0.975')
 
 
-# def reset(event):
-#     U_slider.reset()
-#     V_slider.reset()
-# buttonU.on_clicked(reset)
-# # buttonV.on_clicked(reset)
+def reset(event):
+    U_slider.reset()
+    V_slider.reset()
+buttonU.on_clicked(reset)
+buttonV.on_clicked(reset)
 
-# def update(val):
-#     ax.collections.clear()
-#     lineU = ax.plot_surface(gX,gY,U[int(U_slider.val), :, :])   
-#     figU.canvas.draw_idle()
-#     lineV = ax.plot_surface(gX,gY,V[int(V_slider.val), :, :]) 
-#     figV.canvas.draw_idle()
+def updateU(val):
+    ax.collections.clear()
+    plt.figure(1)
+    ax.plot_surface(gX, gY, U[val, :, :], cmap = "viridis", linewidth=0, antialiased=True)  
+    figU.canvas.draw_idle()
+
+def updateV(val):
+    ax.collections.clear()
+    plt.figure(2)
+    ax.plot_surface(gX, gY, V[val, :, :], cmap = "viridis", linewidth=0, antialiased=True)  
+    figV.canvas.draw_idle()
 
     
-# # register the update function with each slider
-# U_slider.on_changed(update)
-# V_slider.on_changed(update)
+# register the update function with each slider
+U_slider.on_changed(updateU)
+V_slider.on_changed(updateV)
 
 plt.show()
