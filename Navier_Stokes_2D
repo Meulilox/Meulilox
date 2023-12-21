@@ -1,0 +1,184 @@
+import matplotlib.pyplot as plt
+from matplotlib import cm
+# from math import *
+from matplotlib.widgets import Button, Slider
+import numpy as np
+from Laplacien import ResolP
+
+# CONDITIONS INITIALES
+def u_init(x, y):
+    return np.sin(x + y)
+
+def v_init(x, y):
+    return 1/4#np.arctan(x - y) / 40
+
+def p_init(x, y):
+    return x / 4
+
+Re = 1 # NOMBRE DE REYNOLDS DU PROBLEME
+
+# DONNEES PROBLEME
+xmin = 0; xmax = 20
+ymin = 0; ymax = 20
+Tmax = 10
+
+# MAILLAGES N = 30, NT = 200
+N = 20; M = N # N+1 PTS EN X / M+1 PTS EN Y (ON PREND N = M DANS TOUS LES TESTS)
+NT = 200 # NT + 1 PTS EN TEMPS
+
+dx = (xmax - xmin) / N
+dy = (ymax - ymin) / M
+dt = Tmax / NT
+
+X = np.linspace(xmin, xmax, N + 1)
+Y = np.linspace(ymin, ymax, M + 1)
+gX, gY = np.meshgrid(Y, X)
+
+T = np.linspace(0, Tmax, NT + 1)
+
+# INITIALISATION DE L'APPROXIMATION DES
+U = np.zeros((NT + 1, N + 1, M + 1)) # u(t, x, y)
+V = np.zeros((NT + 1, N + 1, M + 1))
+P = np.zeros((NT + 1, N + 1, M + 1))
+
+# CONDITION INITIALES A T = 0 POUR TOUT X ET TOUT Y
+U[0, :, :] = u_init(gX, gY)
+V[0, :, :] = v_init(gX, gY)
+P[0, :, :] = p_init(gX, gY)
+
+# TABLEAUX D'INDICES (POUR PRENDRE EN COMPTE LES CONDITIONS PERIODIQUES
+ip = np.zeros(N + 1); ip[0:-1] = range(1, N + 1); ip[-1] = 0; ip = [int(i) for i in ip] # INDICES i + 1 (POUR PRENDRE EN COMPTE CONDITIONS PERIODIQUES)
+im = np.zeros(N + 1); im[1:] =   range(0, N); im[0] = N; im = [int(i) for i in im] # INDICES i - 1
+jp = np.zeros(M + 1); jp[0:-1] = range(1, M + 1); jp[-1] = 0; jp = [int(j) for j in jp] # INDICES j + 1
+jm = np.zeros(M + 1); jm[1:] =   range(0, M); jm[0] = M; jm = [int(j) for j in jm] # INDICES j - 1
+
+# A CHAQUE PAS DE TEMPS ON REMPLIT LA CREPE
+for n in range(0, NT):
+    # 1ERE ETAPE : CALCUL DE u* ET v*
+
+    # INITALISATION u* ET v*
+    US = np.zeros((N + 1, M + 1))
+    VS = np.zeros((N + 1, M + 1))
+
+    # BOUCLE SUR TOUS LES ELEMENTS DE LA CREPE
+    for i in range(0, N + 1):
+        for j in range(0, M + 1):
+
+            # 1ERE ETAPE : CALCULS DE U* ET V*
+
+            # CALCUL DE U*
+            # TERMES NON LINEAIRES (CONVECTION)
+            NL = -U[n, i, j] * (U[n, ip[i], j] - U[n, i, j]) / dx\
+                 -V[n, i, j] * (U[n, i, jp[j]] - U[n, i, j]) / dy
+
+            # TERMES LINEAIRES (LAPLACIEN)
+            L = (U[n, ip[i], j] - 2*U[n, i, j] + U[n, im[i], j]) / dx**2 +\
+                (U[n, i, jp[j]] - 2*U[n, i, j] + U[n, i, jm[j]]) / dy**2
+            L = L / Re
+
+            # GRADIENT DE PRESSION
+            GP = - (P[n, ip[i], j] - P[n, i, j]) / dx
+
+            US[i, j] = U[n, i, j] + dt * (NL + L + GP)
+
+            # CALCUL DE V*
+            # TERMES NON LINEAIRES (CONVECTION)
+            NL = -U[n, i, j] * (V[n, ip[i], j] - V[n, i, j]) / dx\
+                 -V[n, i, j] * (V[n, i, jp[j]] - V[n, i, j]) / dy
+
+            # TERMES LINEAIRES (LAPLACIEN)
+            L = (V[n, ip[i], j] - 2*V[n, i, j] + V[n, im[i], j]) / dx**2 +\
+                (V[n, i, jp[j]] - 2*V[n, i, j] + V[n, i, jm[j]]) / dy**2
+            L = L / Re
+
+            # GRADIENT DE PRESSION
+            GP = - (P[n, i, jp[j]] - P[n, i, j]) / dy
+
+            VS[i, j] = V[n, i, j] + dt * (NL + L + GP)
+
+    # 2EME ETAPE : CALCUL DE PHI
+
+    # INITIALISATION div(U*) (U* EST LE CHAMP DE VITESSES DE COMPOSANTES (U*, V*) : ABUS DE LANGAGE)
+    DIV_US = np.zeros((N + 1, M + 1))
+
+    # CALCUL DE div(U*) (ICI U* EST LE CHAMP DE COMPOSANTES (U*, V*) EN X ET Y)
+    for i in range(0, N + 1):
+        for j in range(0, M + 1):
+            DIV_US[i, j] = (US[ip[i], j] - US[i, j]) / dx + (VS[i, jp[j]] - VS[i, j]) / dy
+
+    # RESOLUTION DE LAP(PHI) = DIV(U*) (ICI U* EST LE CHAMP DE COMPOSANTES (U*, V*) )
+    phi = ResolP(xmin, xmax, ymin, ymax, N, M, DIV_US)
+    #print(np.max(DIV_US))
+
+    # 3EME ETAPE : CALCUL DE U CORRIGE AU TEMPS D'APRES (/!\ BUG A CETTE ETAPE /!\)
+    """for i in range(0, N + 1):
+        for j in range(0, M + 1):
+            U[n + 1, i, j] = US[i, j] - (phi[ip[i], j] - phi[i, j]) / dx
+            V[n + 1, i, j] = VS[i, j] - (phi[i, jp[j]] - phi[i, j]) / dy"""
+
+    U[n + 1, :, :] = US
+    V[n + 1, :, :] = VS
+
+    # 4EME ETAPE : CORRECTION DE LA PRESSION (/!\ BUG A CETTE ETAPE /!\)
+    #P[n + 1, :, :] = P[n, :, :] + phi / dt - DIV_US / (2*Re)
+
+
+print(np.max(U))
+ind = 100
+# ON RECUPERE LES RESULTATS DANS UN FICHIER
+np.savetxt("Data/Ufield.txt", U[ind, :, :])
+np.savetxt("Data/Vfield.txt", V[ind, :, :])
+
+# TESTS
+plt.figure(1)
+ax = plt.axes(projection='3d')
+ax.plot_surface(gX, gY, U[ind, :, :], cmap = cm.coolwarm, linewidth=0, antialiased=True)
+ax.set_title("U")
+ax.set_xlabel("Y"); ax.set_ylabel("X") # INVERSES A CAUSE DU MESHGRID
+
+plt.figure(2)
+ax = plt.axes(projection='3d')
+ax.plot_surface(gX, gY, V[ind, :, :], cmap = cm.coolwarm, linewidth=0, antialiased=True)
+ax.set_title("V")
+ax.set_xlabel("Y"); ax.set_ylabel("X")
+
+########################################################################
+
+#%% PLOT AVEC SLIDERS
+# create the figure and the axis
+fig, ax = plt.subplots()
+line1, = ax.plot(x,y, lw=2)
+ax.set_xlabel('t')
+ax.set_ylabel('y(t)')
+plt.axis([0,10,0,10])
+plt.title("Test")
+
+# adjust the main plot to make room for the sliders
+fig.subplots_adjust(bottom=0.25)
+
+# Make a horizontal slider to control Re(A)
+axA = fig.add_axes([0.25, 0.1, 0.65, 0.03])
+A_slider = Slider(
+    ax=axA,
+    label='t',
+    valmin=0,
+    valmax=10,
+    valinit=0,
+)
+
+# Create a `matplotlib.widgets.Button` to reset the sliders to initial values
+resetax = fig.add_axes([0.8, 0.025, 0.1, 0.04])
+button = Button(resetax, 'Reset', hovercolor='0.975')
+
+def reset(event):
+    A_slider.reset()
+button.on_clicked(reset)
+
+def update(val):
+    line1.set_ydata(??????)   
+    fig.canvas.draw_idle()
+
+# register the update function with each slider
+A_slider.on_changed(update)
+
+plt.show()
