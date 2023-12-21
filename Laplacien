@@ -1,0 +1,55 @@
+import numpy as np
+
+# LAPLACIEN !
+###########################################
+
+# RESOLUTION DE POISSON lap(U) = f AVEC f UNE MATRICE DE VALEURS (CONNUES) ET CONDITIONS AUX BORDS PERIODIQUES
+def ResolP(xmin, xmax, ymin, ymax, N, M, f):
+
+    # DISCRETISATIONS UNIFORMES EN CARRES (PLUS SIMPLE)
+    X = np.linspace(xmin, xmax, N + 1)
+    Y = np.linspace(ymin, ymax, M + 1)
+    dx = (xmax - xmin) / N
+    dy = (ymax - ymin) / M
+
+    # INITIALISATION SOLUTION
+    U = np.zeros((N + 1)*(M + 1))
+
+    # CONSTRUCTIONS MATRICES POUR SYSTEME LINEAIRE
+    A = np.zeros(((N + 1)*(M + 1), (N + 1)*(M + 1)))
+
+    # MATRICES INTERNES
+    At = (- 2/dx**2 - 2/dy**2) * np.eye(N + 1) + (1/dx**2) * np.eye(N + 1, k = 1) + (1/dx**2) * np.eye(N + 1, k = -1)
+    At[0, -1] = 1/dx**2 # 1ERES CONDITIONS DE PERIODICITE (SUR X ICI)
+    At[-1, 0] = 1/dx**2
+
+    It = (1/dy**2)*np.eye(N + 1)
+
+    # INDICES DES BLOCS
+    BN = [int(i*(N+1)) for i in range(0, M+2)]
+
+    # CONSTRUCTION DE A BLOCS PAR BLOCS (BOUCLES SUR LES LIGNES DE BLOCS)
+    for i in range(0, M + 1):
+        # MATRICES AU MILIEU
+        A[BN[i]:BN[i+1], BN[i]:BN[i+1]] = At # MATRICE At AU MILIEU
+        # MATRICES SUR LES "SOUS DIAG" DE BLOCS
+        if i == 0: A[BN[i+1]:BN[i+2], BN[i]:BN[i+1]] = It
+        elif i == M: A[BN[i-1]:BN[i], BN[i]:BN[i+1]] = It
+        else:
+            A[BN[i+1]:BN[i+2], BN[i]:BN[i+1]] = It
+            A[BN[i-1]:BN[i], BN[i]:BN[i+1]] = It
+
+    A[BN[-2]:BN[-1], 0:N+1] = It # 2EMES CONDITIONS DE PERIODICITE (SUR Y ICI)
+    A[0:N+1, BN[-2]:BN[-1]] = It
+
+    # SECOND MEMBRE DU SYSTEME LINEAIRE
+    B = np.zeros((N+1)*(M+1))
+    for i in range(0, N+1):
+        for j in range(0, M+1):
+            B[j*(N+1) + i] = f[i, j]
+
+    # RESOLUTION SYSTEME LINEAIRE
+    U = np.linalg.solve(A, B)
+    U = np.reshape(U, (M+1, N+1))
+
+    return U #X, Y
