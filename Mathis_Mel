@@ -61,34 +61,50 @@ def ResolP(xmin, xmax, ymin, ymax, N, M, f):
 
 # CONDITIONS INITIALES
 def u_init(x, y):
-    return np.sin(x + y)
+    return u1(y) * (1 + u2(x))
 
 def v_init(x, y):
-    return 1/4#np.arctan(x - y) / 40
+    return 0#1/4#np.arctan(x - y) / 40
 
 def p_init(x, y):
-    return x / 4
+    return 0
 
-Re = 1 # NOMBRE DE REYNOLDS DU PROBLEME
+# FONCTIONS POUR DEFINIR LES CONDITIONS INITIALES SUR U
+def u1(y):
+    return u0 / 2 * (1 + np.tanh(Pj / 2 * (1 - np.abs((ymax - ymin)/2 - y) / Rj)))
 
-# DONNEES PROBLEME
-xmin = 0; xmax = 20
-ymin = 0; ymax = 20
-Tmax = 10
+def u2(x):
+    return Ax * np.sin(2*np.pi*x/lamb_x)
+
+
+# PARAMETRES DISCRETISATIONS
+xmin = 0; xmax = 1
+ymin = 0; ymax = 1
+Tmax = 1.05
 
 # MAILLAGES N = 30, NT = 200
-N = 20; M = N # N+1 PTS EN X / M+1 PTS EN Y (ON PREND N = M DANS TOUS LES TESTS)
-NT = 200 # NT + 1 PTS EN TEMPS
+N = 15; M = N # N+1 PTS EN X / M+1 PTS EN Y (ON PREND N = M DANS TOUS LES TESTS)
+#NT = 15 # NT + 1 PTS EN TEMPS
 
 dx = (xmax - xmin) / N
 dy = (ymax - ymin) / M
-dt = Tmax / NT
+dt = 1/4* dx**2 # <- STABILITE #Tmax / NT
+NT = int(Tmax / dt)
+print(NT)
 
 X = np.linspace(xmin, xmax, N + 1)
 Y = np.linspace(ymin, ymax, M + 1)
 gX, gY = np.meshgrid(Y, X)
 
 T = np.linspace(0, Tmax, NT + 1)
+
+# PARAMETRES PHYSIQUES
+Re = 1000 #1 # NOMBRE DE REYNOLDS DU PROBLEME
+u0 = 1
+Rj = (ymax - ymin) / 4
+Pj = 20
+lamb_x = 1/2 * (xmax - xmin)
+Ax = 1/2
 
 # INITIALISATION DE L'APPROXIMATION DES
 U = np.zeros((NT + 1, N + 1, M + 1)) # u(t, x, y)
@@ -121,9 +137,19 @@ for n in range(0, NT):
             # 1ERE ETAPE : CALCULS DE U* ET V*
 
             # CALCUL DE U*
+
             # TERMES NON LINEAIRES (CONVECTION)
-            NL = -U[n, i, j] * (U[n, ip[i], j] - U[n, i, j]) / dx\
-                 -V[n, i, j] * (U[n, i, jp[j]] - U[n, i, j]) / dy
+            UD = (U[n, i, j] + U[n, ip[i], j]) / 2 # VALEUR DE U A DROITE SUR LE NOEUD DE PRESSION
+            UG = (U[n, i, j] + U[n, im[i], j]) / 2 # VALEUR DE U A GAUCHE SUR LE NOEUD DE PRESSION
+            UH = (U[n, i, j] + U[n, i, jp[j]]) / 2 # VALEUR DE U EN HAUT ?? WHY ??
+            UB = (U[n, i, j] + U[n, i, jm[j]]) / 2 # VALEUR DE U EN BAS ?? WHY ??
+
+            U_val = U[n, i, j] # VALEUR DE U AU NOEUD DE U
+            V_val = 1/4 * (V[n, i, j] + V[n, i, jp[j]] + V[n, im[i], jp[j]] + V[n, im[i], j]) # VALEUR DE V AU NOEUD DE U !
+
+            NL_1 = - U_val * (UD - UG) / dx
+            NL_2 = - V_val * (UH - UB) / dy
+            NL = NL_1 + NL_2
 
             # TERMES LINEAIRES (LAPLACIEN)
             L = (U[n, ip[i], j] - 2*U[n, i, j] + U[n, im[i], j]) / dx**2 +\
@@ -131,14 +157,24 @@ for n in range(0, NT):
             L = L / Re
 
             # GRADIENT DE PRESSION
-            GP = - (P[n, ip[i], j] - P[n, i, j]) / dx
+            GP = - (P[n, i, j] - P[n, im[i], j]) / dx
 
             US[i, j] = U[n, i, j] + dt * (NL + L + GP)
 
             # CALCUL DE V*
+
             # TERMES NON LINEAIRES (CONVECTION)
-            NL = -U[n, i, j] * (V[n, ip[i], j] - V[n, i, j]) / dx\
-                 -V[n, i, j] * (V[n, i, jp[j]] - V[n, i, j]) / dy
+            VH = (V[n, i, j] + V[n, i, jp[j]]) / 2 # VALEUR DE V EN HAUT SUR LE NOEUD DE PRESSION
+            VB = (V[n, i, j] + V[n, i, jm[j]]) / 2 # VALEUR DE V EN BAS SUR LE NOEUD DE PRESSION
+            VG = (V[n, i, j] + V[n, im[i], j]) / 2 # VALEUR DE V A GAUCHE (WHY ???)
+            VD = (V[n, i, j] + V[n, ip[i], j]) / 2 # VALEUR DE V A DROITE (WHY ???)
+
+            V_val = V[n, i, j] # VALEUR DE V AU NOEUD DE V
+            U_val = 1/4 * (U[n, i, j] + U[n, ip[i], j] + U[n, i, jm[j]] + U[n, ip[i], jm[j]])# VALEUR DE U AU NOEUD DE V !
+
+            NL_1 = - U_val * (VD - VG) / dx
+            NL_2 = - V_val * (VH - VB) / dy
+            NL = NL_1 + NL_2
 
             # TERMES LINEAIRES (LAPLACIEN)
             L = (V[n, ip[i], j] - 2*V[n, i, j] + V[n, im[i], j]) / dx**2 +\
@@ -146,7 +182,7 @@ for n in range(0, NT):
             L = L / Re
 
             # GRADIENT DE PRESSION
-            GP = - (P[n, i, jp[j]] - P[n, i, j]) / dy
+            GP = - (P[n, i, j] - P[n, i, jm[j]]) / dy
 
             VS[i, j] = V[n, i, j] + dt * (NL + L + GP)
 
@@ -162,23 +198,25 @@ for n in range(0, NT):
 
     # RESOLUTION DE LAP(PHI) = DIV(U*) (ICI U* EST LE CHAMP DE COMPOSANTES (U*, V*) )
     phi = ResolP(xmin, xmax, ymin, ymax, N, M, DIV_US)
-    #print(np.max(DIV_US))
 
     # 3EME ETAPE : CALCUL DE U CORRIGE AU TEMPS D'APRES (/!\ BUG A CETTE ETAPE /!\)
-    """for i in range(0, N + 1):
+    DIVU = np.zeros((N + 1, M + 1))
+    for i in range(0, N + 1):
         for j in range(0, M + 1):
-            U[n + 1, i, j] = US[i, j] - (phi[ip[i], j] - phi[i, j]) / dx
-            V[n + 1, i, j] = VS[i, j] - (phi[i, jp[j]] - phi[i, j]) / dy"""
+            U[n + 1, i, j] = US[i, j] - dt * (phi[i, j] - phi[im[i], j]) / dx
+            V[n + 1, i, j] = VS[i, j] - dt * (phi[i, j] - phi[i, jm[j]]) / dy
+            DIVU[i, j] = (U[n + 1, ip[i], j] - U[n + 1, i, j]) / dx + (V[n + 1, i, jp[j]] - V[n + 1, i, j]) / dy
+    print(np.max(DIVU))
 
-    U[n + 1, :, :] = US
-    V[n + 1, :, :] = VS
+    """U[n + 1, :, :] = US
+    V[n + 1, :, :] = VS"""
 
     # 4EME ETAPE : CORRECTION DE LA PRESSION (/!\ BUG A CETTE ETAPE /!\)
     #P[n + 1, :, :] = P[n, :, :] + phi / dt - DIV_US / (2*Re)
-
+    P[n + 1, :, :] = P[n, :, :] + phi
 
 print(np.max(U))
-ind = 100
+ind = 3
 # ON RECUPERE LES RESULTATS DANS UN FICHIER
 np.savetxt("Data/Ufield.txt", U[ind, :, :])
 np.savetxt("Data/Vfield.txt", V[ind, :, :])
